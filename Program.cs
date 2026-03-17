@@ -61,7 +61,7 @@ namespace csharp_pc_shutdown_tcp_server_
             NetworkStream stream = client.GetStream();
             Timer timer = new Timer(10000);
             timer.AutoReset = false;
-            timer.Elapsed += (sender, args) => KeepAliveElapsed(sender, client);
+            timer.Elapsed += (sender, args) => KeepAliveElapsed(sender, client, stream);
 
             string message;
 
@@ -77,7 +77,7 @@ namespace csharp_pc_shutdown_tcp_server_
                     HandleIncomingMessage(stream, message);
                     timer.Stop();
                 }
-                catch(ObjectDisposedException)
+                catch (ObjectDisposedException)
                 {
                     break;
                 }
@@ -86,10 +86,11 @@ namespace csharp_pc_shutdown_tcp_server_
             Console.WriteLine("Client disconnected");
         }
 
-        private static void KeepAliveElapsed(object sender, TcpClient client)
+        private static void KeepAliveElapsed(object sender, TcpClient client, NetworkStream stream)
         {
             Console.WriteLine($"Keep alive timer for {client.Client.RemoteEndPoint} elapsed");
             client.Close();
+            stream.Close();
         }
 
         private static void HandleIncomingMessage(NetworkStream stream, string message)
