@@ -1,0 +1,17 @@
+Procedura uruchomienia aplikacji csharp_pc_shutdown_tcp_server_
+
+1. Należy na komputer, który ma być wyłączany, skopiować plik csharp_pc_shutdown_tcp_server_.exe, znajdujący się w lokalizacji: "\bin\Debug", a następnie
+skrót do aplikacji skopiować do folderu Autostart (w celu wyświetlenia folderu Autostart, najlepiej wcisnąć klawisze Win+R,
+następnie w wyświetlonym oknie wpisać "shell:startup" i wcisnąć OK).
+
+2. Po ponownym uruchomieniu komputera zezwolić na używanie aplikacji w sieciach publicznych, domowych i prywatnych, jeśli taki monit zostanie wyświetlony.
+
+Aplikacja działa w tle, więc nie powoduje żadnych efektów ubocznych, jeśli chodzi o działanie samego komputera czy innych zainstalowanych aplikacji.
+
+Po stronie systemu sterowania należy wykonać następujące kroki:
+1. Utworzyć w programie klienta TCP z adresem IP komputera, na którym jest zainstalowana aplikacja i portem 56789.
+2. Aplikacja reaguje na dwie komendy:
+	- "shutdown" - wówczas wysyła odpowiedź "Starting_shutdown_fb\x0A" i wyłącza komputer;
+	- "keep_alive" - wówczas wysyła odpowiedź "Keep_Alive_fb\x0A".
+	
+	Wielkość liter użytych w komendach jest dowolna, komendy mogą być też zakończone znakami \x0D lub \x0A.

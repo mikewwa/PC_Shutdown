@@ -1,0 +1,7 @@
+C:\Projekty\Tests\csharp_pc_shutdown_tcp_server_\bin\Debug\csharp_pc_shutdown_tcp_server_.exe.config
+C:\Projekty\Tests\csharp_pc_shutdown_tcp_server_\bin\Debug\csharp_pc_shutdown_tcp_server_.exe
+C:\Projekty\Tests\csharp_pc_shutdown_tcp_server_\bin\Debug\csharp_pc_shutdown_tcp_server_.pdb
+C:\Projekty\Tests\csharp_pc_shutdown_tcp_server_\obj\Debug\csharp_pc_shutdown_tcp_server_v1_0.csproj.AssemblyReference.cache
+C:\Projekty\Tests\csharp_pc_shutdown_tcp_server_\obj\Debug\csharp_pc_shutdown_tcp_server_v1_0.csproj.CoreCompileInputs.cache
+C:\Projekty\Tests\csharp_pc_shutdown_tcp_server_\obj\Debug\csharp_pc_shutdown_tcp_server_.exe
+C:\Projekty\Tests\csharp_pc_shutdown_tcp_server_\obj\Debug\csharp_pc_shutdown_tcp_server_.pdb
