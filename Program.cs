@@ -126,6 +126,22 @@ namespace csharp_pc_shutdown_tcp_server_
                 {
                     break;
                 }
+                catch (IOException)
+                {
+                    clientStates.Remove(client.Client.RemoteEndPoint.ToString());
+                    client.Close();
+                    stream.Close();
+                    ChangeState(SerState.Listening);
+                    break;
+                }
+                catch (SocketException)
+                {
+                    clientStates.Remove(client.Client.RemoteEndPoint.ToString());
+                    client.Close();
+                    stream.Close();
+                    ChangeState(SerState.Listening);
+                    break;
+                }
             }
 
             Console.WriteLine("Client disconnected");
