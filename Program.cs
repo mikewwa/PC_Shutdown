@@ -19,7 +19,7 @@ namespace csharp_pc_shutdown_tcp_server_
         private static string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log.txt");
         private static TcpListener server;
         private const int PORT = 56789;
-        private static bool isLogEnabled = false;
+        private static bool isLogEnabled = true;
         private static Dictionary<string, bool> clientStates;
 
         public enum SerState
@@ -87,9 +87,9 @@ namespace csharp_pc_shutdown_tcp_server_
             Timer serverTimer = new Timer(60000);
             Timer clientTimer = new Timer(10000);
             serverTimer.AutoReset = false;
-            serverTimer.Elapsed += (sender, args) => KeepAliveElapsed(sender, client, stream);
+            serverTimer.Elapsed += (sender, args) => ĆonnectionTimerElapsed(sender, client, stream);
             clientTimer.AutoReset = false;
-            clientTimer.Elapsed += (sender, args) => ClientConnectedElapsed(sender, client, stream);
+            clientTimer.Elapsed += (sender, args) => ĆonnectionTimerElapsed(sender, client, stream);
             
             string message;
 
@@ -105,7 +105,7 @@ namespace csharp_pc_shutdown_tcp_server_
                             clientTimer.Start();
                         }
                     }
-                    else if(clientStates.ContainsKey(client.Client.RemoteEndPoint.ToString()) && clientStates[client.Client.RemoteEndPoint.ToString()] == true)
+                    else if (clientStates.ContainsKey(client.Client.RemoteEndPoint.ToString()) && clientStates[client.Client.RemoteEndPoint.ToString()] == true)
                     {
                         if (clientTimer.Enabled)
                         {
@@ -114,12 +114,14 @@ namespace csharp_pc_shutdown_tcp_server_
                     }
 
                     byte[] buffer = new byte[1024];
+                    Console.WriteLine($"Client {client.Client.RemoteEndPoint} is connected: {client.Connected}");
                     await stream.ReadAsync(buffer, 0, buffer.Length);
                     message = Encoding.UTF8.GetString(buffer);
                     HandleIncomingMessage(client, stream, message);
-                    
+
                     serverTimer.Stop();
                 }
+
                 catch (ObjectDisposedException)
                 {
                     break;
@@ -129,40 +131,53 @@ namespace csharp_pc_shutdown_tcp_server_
             Console.WriteLine("Client disconnected");
         }
 
-        private static void KeepAliveElapsed(object sender, TcpClient client, NetworkStream stream)
-        {
-            if (client.Connected)
-            {
-                client.Close();
-                stream.Close();
-            }
-        }
-
-        private static void ClientConnectedElapsed(object sender, TcpClient client, NetworkStream stream)
+        private static void ĆonnectionTimerElapsed(object sender, TcpClient client, NetworkStream stream)
         {
             if (client.Connected)
             {
                 clientStates.Remove(client.Client.RemoteEndPoint.ToString());
                 client.Close();
                 stream.Close();
+                ChangeState(SerState.Listening);
+                Console.WriteLine($"[ConnectionTimerElapsed event] current state: {_currentState}");
             }
         }
 
         private static void HandleIncomingMessage(TcpClient client, NetworkStream stream, string message)
         {
+            ChangeState(SerState.Processing);
+
             if (message.ToLower().StartsWith("shutdown"))
             {
+                bool success = false;
+                string msg = string.Empty;
+
                 clientStates[client.Client.RemoteEndPoint.ToString()] = true;
-                //bool success = ExecuteWmiAction(1, "Shutdown");
-                bool success = true;
-                SendResponse(stream, success ? "Starting_shutdown_fb\x0A" : "Error_shutdown_fb\x0A");
+                try
+                {
+                    success = Shutdown(1);
+                }
+                catch(Exception e)
+                {
+                    msg = e.ToString();
+                }
+                SendResponse(stream, success ? "Starting_shutdown_fb\x0A" : $"Error_shutdown_fb: {msg}\x0A");
             }
             else if (message.ToLower().StartsWith("reboot"))
             {
+                bool success = false;
+                string msg = string.Empty;
+
                 clientStates[client.Client.RemoteEndPoint.ToString()] = true;
-                //bool success = ExecuteWmiAction(2, "Reboot");
-                bool success = true;
-                SendResponse(stream, success ? "Starting_reboot_fb\x0A" : "Error_reboot_fb\x0A");
+                try
+                {
+                    success = Reboot();
+                }
+                catch (Exception e)
+                {
+                    msg = e.ToString();
+                }
+                SendResponse(stream, success ? "Starting_reboot_fb\x0A" : $"Error_reboot_fb: {msg}\x0A");
             }
             else if (message.ToLower().StartsWith("keep_alive"))
             {
@@ -184,44 +199,63 @@ namespace csharp_pc_shutdown_tcp_server_
             else
             {
                 clientStates[client.Client.RemoteEndPoint.ToString()] = false;
+                SendResponse(stream, "Unknown command.\x0A");
             }
+
+            ChangeState(SerState.Connected);
         }
 
-        static bool ExecuteWmiAction(int flag, string actionName)
+        static bool Shutdown(int flag)
         {
-            try
+            if (isLogEnabled)
             {
-                if (isLogEnabled)
-                {
-                    Log($"Attempting {actionName} via WMI...");
-                }
-                ConnectionOptions op = new ConnectionOptions { EnablePrivileges = true };
-                ManagementScope scope = new ManagementScope(@"\\.\root\cimv2", op);
-                scope.Connect();
-
-                ObjectQuery oq = new ObjectQuery("SELECT * FROM Win32_OperatingSystem");
-                ManagementObjectSearcher query = new ManagementObjectSearcher(scope, oq);
-
-                foreach (ManagementObject obj in query.Get())
-                {
-                    // 1 = Shutdown, 2 = Reboot, 5 = Forced Shutdown, 12 = Power Off
-                    obj.InvokeMethod("Win32Shutdown", new object[] { flag, 0 });
-                }
-
-                if (isLogEnabled)
-                {
-                    Log($"{actionName} command sent successfully.");
-                }
-                return true;
+                Log("Attempting Shutdown via WMI...");
             }
-            catch (Exception e)
+
+            ConnectionOptions op = new ConnectionOptions { EnablePrivileges = true };
+            ManagementScope scope = new ManagementScope(@"\\.\root\cimv2", op);
+            scope.Connect();
+
+            ObjectQuery oq = new ObjectQuery("SELECT * FROM Win32_OperatingSystem");
+            ManagementObjectSearcher query = new ManagementObjectSearcher(scope, oq);
+
+            foreach(ManagementObject obj in query.Get())
             {
-                if (isLogEnabled)
-                {
-                    Log($"WMI ERROR during {actionName}: {e.Message}\n{e.StackTrace}");
-                }
-                return false;
+                // 1 = Shutdown, 5 = Forced Shutdown, 12 = Power Off
+                obj.InvokeMethod("Win32Shutdown", new object[] { flag, 0 });
             }
+
+            if (isLogEnabled)
+            {
+                Log("Shutdown command sent successfully");
+            }
+
+            return true;
+        }
+
+        static bool Reboot()
+        {
+            if (isLogEnabled)
+            {
+                Log("Attempting Reboot via WMI...");
+            }
+            ConnectionOptions op = new ConnectionOptions { EnablePrivileges = true };
+            ManagementScope scope = new ManagementScope(@"\\.\root\cimv2", op);
+            scope.Connect();
+
+            ObjectQuery oq = new ObjectQuery("SELECT * FROM Win32_OperatingSystem");
+            ManagementObjectSearcher query = new ManagementObjectSearcher(scope, oq);
+
+            foreach (ManagementObject obj in query.Get())
+            {
+                obj.InvokeMethod("Win32Shutdown", new object[] { 2, 0 });
+            }
+
+            if (isLogEnabled)
+            {
+                Log("Reboot command sent successfully.");
+            }
+            return true;
         }
 
         static void SendResponse(NetworkStream stream, string message)
