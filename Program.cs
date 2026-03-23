@@ -124,6 +124,10 @@ namespace csharp_pc_shutdown_tcp_server_
 
                 catch (ObjectDisposedException)
                 {
+                    clientStates.Remove(client.Client.RemoteEndPoint.ToString());
+                    client.Close();
+                    stream.Close();
+                    ChangeState(SerState.Listening);
                     break;
                 }
                 catch (IOException)
